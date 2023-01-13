@@ -9,7 +9,7 @@ ConVar RadiusHealt;
 int g_BeamSprite = -1;
 int g_HaloSprite = -1;
 
-int greyColor[4]		= {128, 128, 128, 255};
+int greyColor[4]	= {128, 128, 128, 255};
 int redColor[4]		= {255, 75, 75, 255};
 
 new Handle:cTimer[MAXPLAYERS + 1];
@@ -19,7 +19,7 @@ public void OnPluginStart()
 {
 	RadiusHealt = CreateConVar("sm_ukr_radius_regen", "300", "", FCVAR_NONE);
 
-	HookEvent("heal_success",			event_HealSuccess);
+	HookEvent("heal_success", event_HealSuccess);
 }
 
 public void OnMapStart()
