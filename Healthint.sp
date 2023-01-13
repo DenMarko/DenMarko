@@ -13,6 +13,7 @@ int greyColor[4]		= {128, 128, 128, 255};
 int redColor[4]		= {255, 75, 75, 255};
 
 new Handle:cTimer[MAXPLAYERS + 1];
+bool IncapClient[MAXPLAYERS + 1] = {false, ...};
 
 public void OnPluginStart()
 {
@@ -82,47 +83,59 @@ void KillClientTimer(int client)
 		RegenExtra(client, false);
 	}
 	
+	IncapClient[client] = false;
+	
 	if(cTimer[client] != INVALID_HANDLE) {
 		KillTimer(cTimer[client]);
 		cTimer[client] = INVALID_HANDLE;
 	}
 }
 
-bool IsPlayerIncapped(client)
+stock void GiveHealth(int client)
 {
-	if (GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
-	{
-		return true;
-	}
-	else return false;
+	new flags = GetCommandFlags("give");
+	SetCommandFlags("give", flags & ~FCVAR_CHEAT);
+	FakeClientCommand(client, "give health");
+	SetCommandFlags("give", flags);
+	SetEntityHealth(client, 3);
 }
 
 public Action:ClientTick(Handle:timer, any:gClient)
 {
 	int client = gClient & 0x7f;
 	int hp = gClient >> 7;
-	int Health = GetEntProp(client, Prop_Send, "m_iHealth");
-	int MaxHeaith = GetEntProp(client, Prop_Send, "m_iMaxHealth");
 
-	if(IsClientInGame(client) && GetClientTeam(client) == 2)
+	if(IsClientConnected(client) && IsClientInGame(client))
 	{
-		if(Health < 2 || IsPlayerIncapped(client))
+		if(GetClientTeam(client) == 2)
 		{
-			new flags = GetCommandFlags("give");
-			SetCommandFlags("give", flags & ~FCVAR_CHEAT);
-			FakeClientCommand(client, "give health");
-			SetCommandFlags("give", flags);
-			SetEntityHealth(client, 3);
+			int Health = GetEntProp(client, Prop_Send, "m_iHealth");
+			int MaxHeaith = GetEntProp(client, Prop_Send, "m_iMaxHealth");
+			int offset = FindSendPropInfo("CTerrorPlayer", "m_currentReviveCount");
+			int incap = GetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
+			
+			if(incap == 1)
+			{
+				if(IncapClient[client] == false)
+				{
+					IncapClient[client] = true;
+					GiveHealth(client);
+				}
+			}
+			if(Health < 2)
+			{
+				GiveHealth(client);
+			}
+			else if(GetEntData(client, offset, 1) > 0)
+			{
+				SetEntData(client, offset, 0, 1);
+			}
+			else if(Health >= (hp + 40) || (Health == MaxHeaith))
+			{
+				KillClientTimer(client);
+			}
 		}
-		else if(GetEntData(client, FindSendPropInfo("CTerrorPlayer", "m_currentReviveCount"), 1) > 0)
-		{
-			SetEntData(client, FindSendPropInfo("CTerrorPlayer", "m_currentReviveCount"), 0, 1);
-		}
-		else if((hp + 40) <= Health)
-		{
-			KillClientTimer(client);
-		}
-		else if(Health == MaxHeaith)
+		else
 		{
 			KillClientTimer(client);
 		}
