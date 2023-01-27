@@ -9,17 +9,18 @@ ConVar RadiusHealt;
 int g_BeamSprite = -1;
 int g_HaloSprite = -1;
 
-int greyColor[4]	= {128, 128, 128, 255};
-int redColor[4]		= {255, 75, 75, 255};
+int greyColor[4]					= {128, 128, 128, 255};
+int redColor[4]					= {255, 75, 75, 255};
+bool IncapClient[MAXPLAYERS + 1]	= {false, ...};
+int HpCount[MAXPLAYERS + 1]		= {0, ...};
 
 new Handle:cTimer[MAXPLAYERS + 1];
-bool IncapClient[MAXPLAYERS + 1] = {false, ...};
 
 public void OnPluginStart()
 {
 	RadiusHealt = CreateConVar("sm_ukr_radius_regen", "300", "", FCVAR_NONE);
 
-	HookEvent("heal_success", event_HealSuccess);
+	HookEvent("heal_success",			event_HealSuccess);
 }
 
 public void OnMapStart()
@@ -49,6 +50,11 @@ public event_HealSuccess(Event event, const char[] name, bool dontBroadcast)
 		TE_SendToAll();
 	}
 	
+	if(IsClientInGame(subject))
+	{
+		SetEntityRenderColor(subject, 255, 255, 255, 255);
+	}
+	
 	float cVec[3];
 	for(int i = 1; i <= MaxClients; i++)
 	{
@@ -59,10 +65,11 @@ public event_HealSuccess(Event event, const char[] name, bool dontBroadcast)
 				GetClientAbsOrigin(i, cVec);
 				if(GetVectorDistance(vec, cVec) < RadiusHealt.FloatValue)
 				{
+					HpCount[i]++;
+					RegenExtra(i, true, (2 * HpCount[i]));
 					if(cTimer[i] == INVALID_HANDLE)
 					{
 						int hp = GetEntProp(i, Prop_Send, "m_iHealth");
-						RegenExtra(i, true);
 						cTimer[i] = CreateTimer(0.5, ClientTick, i | (hp << 7), TIMER_REPEAT);
 					}
 				}
@@ -70,20 +77,17 @@ public event_HealSuccess(Event event, const char[] name, bool dontBroadcast)
 		}
 	}
 	
-	if(IsClientInGame(subject))
-	{
-		SetEntityRenderColor(subject, 255, 255, 255, 255);
-	}
 	return;
 }
 
 void KillClientTimer(int client)
 {
 	if(IsClientInGame(client)) {
-		RegenExtra(client, false);
+		RegenExtra(client, false, 1);
 	}
 	
 	IncapClient[client] = false;
+	HpCount[client] = 0;
 	
 	if(cTimer[client] != INVALID_HANDLE) {
 		KillTimer(cTimer[client]);
@@ -122,15 +126,36 @@ public Action:ClientTick(Handle:timer, any:gClient)
 					GiveHealth(client);
 				}
 			}
+			if(IncapClient[client])
+			{
+				if(hp >= 3)
+				{
+					hp = 3;
+				}
+			}
+			
+			int Hp_c = hp + ((HpCount[client] == 1) ? 40 : (40 * HpCount[client]));			
+			if(Hp_c > MaxHeaith)
+			{
+				Hp_c = MaxHeaith;
+			}
+			
 			if(Health < 2)
 			{
 				GiveHealth(client);
 			}
-			else if(GetEntData(client, offset, 1) > 0)
+			
+			if(GetEntData(client, offset, 1) > 0)
 			{
 				SetEntData(client, offset, 0, 1);
 			}
-			else if(Health >= (hp + 40) || (Health == MaxHeaith))
+			
+			if(Health >= Hp_c)
+			{
+				KillClientTimer(client);
+			}
+
+			if(Health == MaxHeaith)
 			{
 				KillClientTimer(client);
 			}
