@@ -6,12 +6,16 @@
 
 ConVar RadiusHealt;
 
-int g_BeamSprite = -1;
-int g_HaloSprite = -1;
+int g_BeamSprite			= -1;
+int g_HaloSprite			= -1;
 
-int greyColor[4]					= {128, 128, 128, 255};
-int redColor[4]					= {255, 75, 75, 255};
+int greyColor[4]			= {128, 128, 128, 255};
+int redColor[4]				= {255, 75, 75, 255};
+int g_HP_c[MAXPLAYERS + 1]		= {0, ...};
+
 bool IncapClient[MAXPLAYERS + 1]	= {false, ...};
+bool bRoundStart = true;
+
 int HpCount[MAXPLAYERS + 1]		= {0, ...};
 
 new Handle:cTimer[MAXPLAYERS + 1];
@@ -21,6 +25,48 @@ public void OnPluginStart()
 	RadiusHealt = CreateConVar("sm_ukr_radius_regen", "300", "", FCVAR_NONE);
 
 	HookEvent("heal_success",			event_HealSuccess);
+	HookEvent("round_start",			Event_RoundStart);
+	HookEvent("round_end",				Event_RoundEnd);
+	HookEvent("map_transition",			Event_MapTransition);
+}
+
+public Action Event_MapTransition(Event event, const char[] name, bool dontBroadcast)
+{
+	bRoundStart = true;
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if(cTimer[i] != null){
+			if(IsClientConnected(i) && IsClientInGame(i)) {
+				if(IsPlayerAlive(i) && GetClientTeam(i) == 2) {
+					int hp = g_HP_c[i] + ((HpCount[i] == 1) ? 40 : (40 * HpCount[i]));
+					int m_iMaxHealth = GetEntData(i, FindDataMapInfo(i, "m_iMaxHealth"), 4);
+					SetHealt(i, hp, m_iMaxHealth);
+				}
+			}
+			KillClientTimer(i);
+		}
+	}
+}
+
+void SetHealt(int client, int hp, int maxHp)
+{
+	if(hp >= maxHp) {
+		SetEntData(client, FindDataMapInfo(client, "m_iHealth"), maxHp, 4, true);
+	} else {
+		SetEntData(client, FindDataMapInfo(client, "m_iHealth"), hp, 4, true);
+	}
+}
+
+public Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
+{
+	bRoundStart = true;
+	return;
+}
+
+public Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	bRoundStart = false;
+	return;
 }
 
 public void OnMapStart()
@@ -66,11 +112,19 @@ public event_HealSuccess(Event event, const char[] name, bool dontBroadcast)
 				if(GetVectorDistance(vec, cVec) < RadiusHealt.FloatValue)
 				{
 					HpCount[i]++;
-					RegenExtra(i, true, (2 * HpCount[i]));
-					if(cTimer[i] == INVALID_HANDLE)
+					int m_iHealth = GetEntData(i, FindDataMapInfo(i, "m_iHealth"), 4);
+					if(!bRoundStart)
 					{
-						int hp = GetEntProp(i, Prop_Send, "m_iHealth");
-						cTimer[i] = CreateTimer(0.5, ClientTick, i | (hp << 7), TIMER_REPEAT);
+						int hp = m_iHealth + 40;
+						int m_iMaxHealth = GetEntData(i, FindDataMapInfo(i, "m_iMaxHealth"), 4);
+						SetHealt(i, hp, m_iMaxHealth);
+					} else {
+						RegenExtra(i, true, (2 * HpCount[i]));
+						if(cTimer[i] == INVALID_HANDLE)
+						{
+							g_HP_c[i] = m_iHealth;
+							cTimer[i] = CreateTimer(0.5, ClientTick, i, TIMER_REPEAT);
+						}
 					}
 				}
 			}
@@ -88,6 +142,7 @@ void KillClientTimer(int client)
 	
 	IncapClient[client] = false;
 	HpCount[client] = 0;
+	g_HP_c[client] = 0;
 	
 	if(cTimer[client] != INVALID_HANDLE) {
 		KillTimer(cTimer[client]);
@@ -104,11 +159,8 @@ stock void GiveHealth(int client)
 	SetEntityHealth(client, 3);
 }
 
-public Action:ClientTick(Handle:timer, any:gClient)
+public Action:ClientTick(Handle:timer, any:client)
 {
-	int client = gClient & 0x7f;
-	int hp = gClient >> 7;
-
 	if(IsClientConnected(client) && IsClientInGame(client))
 	{
 		if(GetClientTeam(client) == 2)
@@ -128,13 +180,13 @@ public Action:ClientTick(Handle:timer, any:gClient)
 			}
 			if(IncapClient[client])
 			{
-				if(hp >= 3)
+				if(g_HP_c[client] >= 3)
 				{
-					hp = 3;
+					g_HP_c[client] = 3;
 				}
 			}
 			
-			int Hp_c = hp + ((HpCount[client] == 1) ? 40 : (40 * HpCount[client]));			
+			int Hp_c = g_HP_c[client] + ((HpCount[client] == 1) ? 40 : (40 * HpCount[client]));			
 			if(Hp_c > MaxHeaith)
 			{
 				Hp_c = MaxHeaith;
