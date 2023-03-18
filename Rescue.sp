@@ -31,7 +31,7 @@ public void OnPluginStart()
 {
 	LogMessegToFile("Plugins init all values in hooks");
 
-	HookEvent("round_start",		Event_RoundStart,		EventHookMode_PostNoCopy);
+	HookEvent("round_start",		Event_RoundStart,	EventHookMode_PostNoCopy);
 	HookEvent("round_end",			Event_RoundEnd,		EventHookMode_PostNoCopy);
 	HookEvent("map_transition",		Event_MapTransition,	EventHookMode_PostNoCopy);
 	HookEvent("finale_win",			Event_FinalWin,		EventHookMode_PostNoCopy);
@@ -48,9 +48,9 @@ public void OnPluginEnd()
 {
 	LogMessegToFile("Plugins Is end hooks in timer stop");
 
-	UnhookEvent("round_start",			Event_RoundStart,		EventHookMode_PostNoCopy);
+	UnhookEvent("round_start",			Event_RoundStart,	EventHookMode_PostNoCopy);
 	UnhookEvent("round_end",			Event_RoundEnd,		EventHookMode_PostNoCopy);
-	UnhookEvent("map_transition",		Event_MapTransition,	EventHookMode_PostNoCopy);
+	UnhookEvent("map_transition",			Event_MapTransition,	EventHookMode_PostNoCopy);
 	UnhookEvent("finale_win",			Event_FinalWin,		EventHookMode_PostNoCopy);
 	UnhookEvent("finale_start",			Event_finale_start,	EventHookMode_PostNoCopy);
 
